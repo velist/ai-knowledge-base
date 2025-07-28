@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb"
+      }
+    },
+    {
+      "src": "api/admin.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/admin/(.*)",
+      "dest": "/api/admin.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.py"
+    }
+  ],
+  "env": {
+    "ENVIRONMENT": "production",
+    "DEBUG": "false",
+    "SECRET_KEY": "your-secret-key-here-change-in-production",
+    "ALLOWED_HOSTS": "*.vercel.app"
+  },
+  "regions": ["hkg1"],
+  "github": {
+    "silent": true
+  }
+}

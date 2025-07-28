@@ -1,0 +1,108 @@
+# Vercel部署忽略文件
+
+# Python缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PYTHON_PATH
+
+# 虚拟环境
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 日志文件
+logs/
+*.log
+
+# 上传文件
+uploads/
+
+# 静态文件（如果不需要）
+static/
+
+# 本地配置
+.env
+.env.local
+.env.development
+.env.test
+
+# 本地部署文件
+deploy.py
+start.sh
+start.bat
+main.py
+main_minimal.py
+main_user_frontend.py
+main_with_ui.py
+run.py
+simple_run.py
+admin_backend.py
+
+# Docker文件
+Dockerfile
+docker-compose.yml
+nginx.conf
+
+# 本地依赖文件
+requirements.txt
+
+# 文档文件
+DEPLOYMENT.md
+README.md
+
+# Git文件
+.git/
+.gitignore
+
+# 测试文件
+tests/
+*.test.py
+pytest.ini
+
+# 备份文件
+*.bak
+*.backup
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 应用目录（如果不需要）
+app/

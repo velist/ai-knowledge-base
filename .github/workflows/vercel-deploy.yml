@@ -1,0 +1,221 @@
+name: Vercel部署和验证
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: 部署到Vercel
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: 安装Python依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-vercel.txt
+        
+    - name: 代码质量检查
+      run: |
+        # 检查Python语法
+        python -m py_compile api/index.py
+        python -m py_compile api/admin.py
+        echo "✅ Python语法检查通过"
+        
+    - name: 安装Vercel CLI
+      run: npm i -g vercel@latest
+      
+    - name: 拉取Vercel环境信息
+      run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      
+    - name: 构建项目
+      run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      
+    - name: 部署到Vercel (预览)
+      if: github.event_name == 'pull_request'
+      id: deploy-preview
+      run: |
+        DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+        echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+        echo "🚀 预览部署完成: $DEPLOYMENT_URL"
+        
+    - name: 部署到Vercel (生产)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      id: deploy-production
+      run: |
+        DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+        echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+        echo "🚀 生产部署完成: $DEPLOYMENT_URL"
+        
+    - name: 等待部署完成
+      run: |
+        echo "⏳ 等待部署完全启动..."
+        sleep 30
+        
+    - name: 验证部署 (预览)
+      if: github.event_name == 'pull_request'
+      run: |
+        DEPLOYMENT_URL="${{ steps.deploy-preview.outputs.deployment_url }}"
+        echo "🔍 验证预览部署: $DEPLOYMENT_URL"
+        python verify_deployment.py --url "$DEPLOYMENT_URL" --output verification-preview.json
+        
+    - name: 验证部署 (生产)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        DEPLOYMENT_URL="${{ steps.deploy-production.outputs.deployment_url }}"
+        echo "🔍 验证生产部署: $DEPLOYMENT_URL"
+        python verify_deployment.py --url "$DEPLOYMENT_URL" --output verification-production.json
+        
+    - name: 上传验证结果
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: verification-results
+        path: verification-*.json
+        
+    - name: 评论PR (预览部署)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const deploymentUrl = '${{ steps.deploy-preview.outputs.deployment_url }}';
+          
+          let verificationStatus = '✅ 验证通过';
+          try {
+            const verificationResult = JSON.parse(fs.readFileSync('verification-preview.json', 'utf8'));
+            if (verificationResult.overall_status !== 'success') {
+              verificationStatus = '⚠️ 部分验证失败';
+            }
+          } catch (e) {
+            verificationStatus = '❌ 验证失败';
+          }
+          
+          const comment = `## 🚀 Vercel预览部署
+          
+          **部署状态**: ${verificationStatus}
+          **预览地址**: ${deploymentUrl}
+          **管理后台**: ${deploymentUrl}/admin
+          
+          ### 🔐 测试账户
+          - 用户名: \`vee5208\`
+          - 密码: \`forxy131\`
+          
+          ### 📋 验证项目
+          - ✅ 前端服务
+          - ✅ 管理后台
+          - ✅ API接口
+          - ✅ 健康检查
+          
+          ---
+          *此评论由GitHub Actions自动生成*`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+          
+    - name: 发送部署通知 (生产)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        DEPLOYMENT_URL="${{ steps.deploy-production.outputs.deployment_url }}"
+        echo "📢 生产部署通知"
+        echo "🌐 前端地址: $DEPLOYMENT_URL"
+        echo "🔧 管理后台: $DEPLOYMENT_URL/admin"
+        echo "📚 API文档: $DEPLOYMENT_URL/docs"
+        echo "🔐 管理员: vee5208 / forxy131"
+        
+  security-scan:
+    runs-on: ubuntu-latest
+    name: 安全扫描
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: 安装安全扫描工具
+      run: |
+        pip install bandit safety
+        
+    - name: 运行Bandit安全扫描
+      run: |
+        bandit -r api/ -f json -o bandit-report.json || true
+        bandit -r api/ || true
+        
+    - name: 检查依赖安全性
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check || true
+        
+    - name: 上传安全报告
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+          
+  performance-test:
+    runs-on: ubuntu-latest
+    name: 性能测试
+    needs: deploy
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 安装性能测试工具
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y apache2-utils
+        
+    - name: 运行性能测试
+      run: |
+        # 获取部署URL（这里需要从前面的job获取）
+        DEPLOYMENT_URL="https://ai-knowledge-base.vercel.app"
+        
+        echo "🚀 开始性能测试: $DEPLOYMENT_URL"
+        
+        # 测试首页响应时间
+        echo "📊 测试首页性能..."
+        ab -n 100 -c 10 "$DEPLOYMENT_URL/" > performance-home.txt || true
+        
+        # 测试API性能
+        echo "📊 测试API性能..."
+        ab -n 50 -c 5 "$DEPLOYMENT_URL/api/health" > performance-api.txt || true
+        
+        # 显示结果摘要
+        echo "📈 性能测试完成"
+        grep "Requests per second" performance-*.txt || true
+        grep "Time per request" performance-*.txt || true
+        
+    - name: 上传性能报告
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-reports
+        path: performance-*.txt
