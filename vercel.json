@@ -5,14 +5,16 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb"
+        "maxLambdaSize": "15mb",
+        "pythonRequirements": "requirements-vercel.txt"
       }
     },
     {
       "src": "api/admin.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb"
+        "maxLambdaSize": "15mb",
+        "pythonRequirements": "requirements-vercel.txt"
       }
     }
   ],
