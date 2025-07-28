@@ -6,14 +6,16 @@
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb"
-      }
+      },
+      "pythonRequirements": "requirements.txt"
     },
     {
       "src": "api/admin.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb"
-      }
+      },
+      "pythonRequirements": "requirements.txt"
     }
   ],
   "routes": [
@@ -32,7 +34,7 @@
     "SECRET_KEY": "your-secret-key-here-change-in-production",
     "ALLOWED_HOSTS": "*.vercel.app"
   },
-  "regions": ["hkg1"],
+  "regions": ["iad1"],
   "github": {
     "silent": true
   }
